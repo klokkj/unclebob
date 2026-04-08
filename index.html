@@ -56,13 +56,11 @@
                 <div class="mt-3 p-3 bg-light rounded-3">
                     <h5 class="mb-3">🛤️ Построить маршрут (Яндекс.Карты)</h5>
                     <div class="row g-3">
-                        <!-- Старт -->
                         <div class="col-md-5">
                             <label class="form-label">Старт</label>
                             <select id="startSelect" class="form-select mb-2"></select>
-                            <input type="text" id="startAddress" class="form-control" placeholder="Или введите адрес вручную (например: Астана, проспект Мира 10)">
+                            <input type="text" id="startAddress" class="form-control" placeholder="Или введите адрес вручную (например: Астана, Мангилик Ел 10)">
                         </div>
-                        <!-- Финиш -->
                         <div class="col-md-5">
                             <label class="form-label">Финиш</label>
                             <select id="endSelect" class="form-select mb-2"></select>
@@ -237,19 +235,16 @@
         function refreshMapAndCards() {
             if (map) map.geoObjects.removeAll();
             markers = {};
-
             objects.forEach(obj => {
                 const placemark = new ymaps.Placemark([obj.lat, obj.lng], {
                     hintContent: obj.name,
                     balloonContentHeader: obj.name,
                     balloonContentBody: `<strong>${obj.location}</strong><br>${obj.description.substring(0, 120)}...`
                 }, { preset: 'islands#blueDotIcon' });
-
                 placemark.events.add('click', () => showInfoModal(obj));
                 map.geoObjects.add(placemark);
                 markers[obj.key] = placemark;
             });
-
             renderCards();
             populateSelects();
         }
@@ -433,48 +428,60 @@
 
             let startPoint, endPoint;
 
-            // === Старт ===
-            if (startAddr) {
-                try {
-                    const res = await ymaps.geocode(startAddr, { results: 1 });
+            try {
+                // === СТАРТ ===
+                if (startAddr) {
+                    console.log('🔍 Геокодируем старт:', startAddr);
+                    const res = await ymaps.geocode(startAddr, { results: 1, lang: 'ru_RU' });
                     const geo = res.geoObjects.get(0);
-                    if (geo) startPoint = geo.geometry.getCoordinates();
-                    else return alert('Не удалось найти введённый адрес старта');
-                } catch (e) { return alert('Ошибка поиска адреса старта'); }
-            } else if (startSelectVal) {
-                const obj = objects.find(o => o.key === startSelectVal);
-                startPoint = [obj.lat, obj.lng];
-            } else {
-                return alert('Укажите точку старта (выберите объект или введите адрес)');
-            }
+                    if (geo) {
+                        startPoint = geo.geometry.getCoordinates();
+                        console.log('✅ Старт найден:', startPoint);
+                    } else {
+                        return alert('Не удалось найти адрес старта.\nПопробуйте более точный адрес (город + улица + номер дома)');
+                    }
+                } else if (startSelectVal) {
+                    const obj = objects.find(o => o.key === startSelectVal);
+                    if (obj) startPoint = [obj.lat, obj.lng];
+                } else {
+                    return alert('Укажите точку старта (выберите объект или введите адрес)');
+                }
 
-            // === Финиш ===
-            if (endAddr) {
-                try {
-                    const res = await ymaps.geocode(endAddr, { results: 1 });
+                // === ФИНИШ ===
+                if (endAddr) {
+                    console.log('🔍 Геокодируем финиш:', endAddr);
+                    const res = await ymaps.geocode(endAddr, { results: 1, lang: 'ru_RU' });
                     const geo = res.geoObjects.get(0);
-                    if (geo) endPoint = geo.geometry.getCoordinates();
-                    else return alert('Не удалось найти введённый адрес финиша');
-                } catch (e) { return alert('Ошибка поиска адреса финиша'); }
-            } else if (endSelectVal) {
-                const obj = objects.find(o => o.key === endSelectVal);
-                endPoint = [obj.lat, obj.lng];
-            } else {
-                return alert('Укажите точку финиша (выберите объект или введите адрес)');
+                    if (geo) {
+                        endPoint = geo.geometry.getCoordinates();
+                        console.log('✅ Финиш найден:', endPoint);
+                    } else {
+                        return alert('Не удалось найти адрес финиша.\nПопробуйте более точный адрес (город + улица + номер дома)');
+                    }
+                } else if (endSelectVal) {
+                    const obj = objects.find(o => o.key === endSelectVal);
+                    if (obj) endPoint = [obj.lat, obj.lng];
+                } else {
+                    return alert('Укажите точку финиша (выберите объект или введите адрес)');
+                }
+
+                if (routeControl) map.geoObjects.remove(routeControl);
+
+                routeControl = new ymaps.multiRouter.MultiRoute({
+                    referencePoints: [startPoint, endPoint],
+                    params: { results: 1 }
+                }, {
+                    boundsAutoApply: true,
+                    wayPointStartIconColor: '#1e88e5',
+                    wayPointFinishIconColor: '#d32f2f'
+                });
+
+                map.geoObjects.add(routeControl);
+                console.log('🚀 Маршрут успешно построен!');
+            } catch (e) {
+                console.error('❌ Ошибка построения маршрута:', e);
+                alert('Ошибка при построении маршрута:\n' + e.message);
             }
-
-            if (routeControl) map.geoObjects.remove(routeControl);
-
-            routeControl = new ymaps.multiRouter.MultiRoute({
-                referencePoints: [startPoint, endPoint],
-                params: { results: 1 }
-            }, {
-                boundsAutoApply: true,
-                wayPointStartIconColor: '#1e88e5',
-                wayPointFinishIconColor: '#d32f2f'
-            });
-
-            map.geoObjects.add(routeControl);
         };
 
         window.clearRoute = function () {
@@ -482,7 +489,6 @@
                 map.geoObjects.remove(routeControl);
                 routeControl = null;
             }
-            // Очищаем поля адресов
             document.getElementById('startAddress').value = '';
             document.getElementById('endAddress').value = '';
         };
@@ -492,7 +498,7 @@
             initMap();
             loadEditMode();
             loadObjects();
-            console.log('%c✅ Яндекс.Карты + ручные адреса работают!', 'color:#0d6efd;font-size:16px');
+            console.log('%c✅ Яндекс.Карты + исправленный маршрут готовы!', 'color:#0d6efd;font-size:16px');
         };
     </script>
 </body>
