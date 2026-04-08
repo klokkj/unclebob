@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Каталог исторических объектов</title>
    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-   
     <style>
         body { font-family: 'Segoe UI', system-ui, sans-serif; }
         #map { height: 650px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -57,7 +54,7 @@
             <div class="col-lg-7 col-xl-8">
                 <div id="map"></div>
                 <div class="mt-3 p-3 bg-light rounded-3">
-                    <h5 class="mb-3">🛤️ Построить маршрут</h5>
+                    <h5 class="mb-3">🛤️ Построить маршрут (Яндекс)</h5>
                     <div class="row g-3 align-items-end">
                         <div class="col-md-5"><label class="form-label">Старт</label><select id="startSelect" class="form-select"></select></div>
                         <div class="col-md-5"><label class="form-label">Финиш</label><select id="endSelect" class="form-select"></select></div>
@@ -87,7 +84,7 @@
         </div>
     </div>
 
-    <!-- Lightbox (увеличение фото) -->
+    <!-- Lightbox -->
     <div class="modal fade" id="lightboxModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content bg-dark border-0">
@@ -101,7 +98,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно добавления/редактирования -->
+    <!-- Добавление/редактирование -->
     <div class="modal fade" id="addModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -117,7 +114,6 @@
                             <div class="col-6 mb-3"><label>Широта <span class="text-danger">*</span></label><input type="number" id="newLat" step="0.000001" class="form-control" required></div>
                             <div class="col-6 mb-3"><label>Долгота <span class="text-danger">*</span></label><input type="number" id="newLng" step="0.000001" class="form-control" required></div>
                         </div>
-                        
                         <div class="mb-4">
                             <label class="form-label">Фотографии объекта (по ссылке)</label>
                             <div id="currentPhotosPreview" class="d-flex flex-wrap gap-2 mb-3"></div>
@@ -125,9 +121,7 @@
                                 <input type="url" id="newPhotoUrl" class="form-control" placeholder="https://example.com/photo.jpg">
                                 <button type="button" onclick="addPhotoByUrl()" class="btn btn-outline-primary">Добавить фото</button>
                             </div>
-                            <small class="text-muted">Вставляй прямые ссылки на изображения</small>
                         </div>
-                        
                         <div class="mb-3"><label>Описание <span class="text-danger">*</span></label><textarea id="newDescription" class="form-control" rows="5" required></textarea></div>
                     </form>
                 </div>
@@ -139,7 +133,7 @@
         </div>
     </div>
 
-    <!-- Окно пароля -->
+    <!-- Пароль -->
     <div class="modal fade" id="passwordModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -155,12 +149,11 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=85b46bce-2045-4591-9a70-488a56b73e77&lang=ru_RU"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    
+
     <script>
         const firebaseConfig = {
           apiKey: "AIzaSyDc_Enuh24ep2DjeTcahKj4ZTVabY6rx8c",
@@ -193,6 +186,17 @@
             }
         }
 
+        function initMap() {
+            ymaps.ready(() => {
+                map = new ymaps.Map('map', {
+                    center: [51.1694, 71.4491],
+                    zoom: 6,
+                    controls: ['zoomControl', 'fullscreenControl', 'rulerControl', 'searchControl']
+                });
+                refreshMapAndCards();
+            });
+        }
+
         function loadObjects() {
             objectsRef.on('value', (snapshot) => {
                 const data = snapshot.val();
@@ -219,13 +223,23 @@
         }
 
         function refreshMapAndCards() {
-            Object.values(markers).forEach(m => map.removeLayer(m));
+            if (map) map.geoObjects.removeAll();
             markers = {};
+
             objects.forEach(obj => {
-                const marker = L.marker([obj.lat, obj.lng]).addTo(map);
-                marker.bindPopup(`<b>${obj.name}</b><br>${obj.location}`);
-                markers[obj.key] = marker;
+                const placemark = new ymaps.Placemark([obj.lat, obj.lng], {
+                    hintContent: obj.name,
+                    balloonContentHeader: obj.name,
+                    balloonContentBody: `<strong>${obj.location}</strong><br>${obj.description.substring(0, 120)}...`
+                }, {
+                    preset: 'islands#blueDotIcon'
+                });
+
+                placemark.events.add('click', () => showInfoModal(obj));
+                map.geoObjects.add(placemark);
+                markers[obj.key] = placemark;
             });
+
             renderCards();
             populateSelects();
         }
@@ -271,6 +285,7 @@
                 carouselHTML += `<div class="carousel-item active"><img src="https://picsum.photos/id/1005/800/600" onclick="enlargeImage('https://picsum.photos/id/1005/800/600')"></div>`;
             }
             carouselHTML += `<button class="carousel-control-prev" type="button" data-bs-target="#photoCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button><button class="carousel-control-next" type="button" data-bs-target="#photoCarousel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button></div>`;
+            
             document.getElementById('modalBody').innerHTML = `${carouselHTML}<p class="mt-3"><strong>Местоположение:</strong> ${obj.location}</p><p><strong>Координаты:</strong> ${obj.lat}, ${obj.lng}</p><p>${obj.description}</p>`;
             document.getElementById('editInModalBtn').classList.toggle('d-none', !editMode);
             document.getElementById('deleteInModalBtn').classList.toggle('d-none', !editMode);
@@ -286,8 +301,7 @@
             const obj = objects.find(o => o.key === currentObjectKey);
             if (!obj) return;
             bootstrap.Modal.getInstance(document.getElementById('infoModal')).hide();
-            map.flyTo([obj.lat, obj.lng], 16);
-            setTimeout(() => markers[obj.key]?.openPopup(), 800);
+            map.setCenter([obj.lat, obj.lng], 16);
         };
 
         window.hideInfoAndEdit = function() {
@@ -332,9 +346,7 @@
                 currentPhotos.push(url);
                 renderCurrentPhotosPreview();
                 document.getElementById('newPhotoUrl').value = '';
-            } else {
-                alert("Вставьте ссылку на фото!");
-            }
+            } else alert("Вставьте ссылку на фото!");
         };
 
         function showAddModal() {
@@ -354,20 +366,12 @@
             const description = document.getElementById('newDescription').value.trim();
             if (!name || !location || isNaN(lat) || isNaN(lng) || !description) return alert('Заполните все обязательные поля!');
             
-            const objData = {
-                name,
-                location,
-                lat,
-                lng,
-                photos: currentPhotos.length ? currentPhotos : ["https://picsum.photos/id/1005/800/600"],
-                description
-            };
-
+            const objData = { name, location, lat, lng, photos: currentPhotos.length ? currentPhotos : ["https://picsum.photos/id/1005/800/600"], description };
             const modal = bootstrap.Modal.getInstance(document.getElementById('addModal'));
             if (currentObjectKey) {
-                objectsRef.child(currentObjectKey).update(objData).then(() => { alert('✅ Объект обновлён!'); modal.hide(); });
+                objectsRef.child(currentObjectKey).update(objData).then(() => { alert('✅ Обновлено!'); modal.hide(); });
             } else {
-                objectsRef.push(objData).then(() => { alert('✅ Новый объект добавлен!'); modal.hide(); });
+                objectsRef.push(objData).then(() => { alert('✅ Добавлено!'); modal.hide(); });
             }
         };
 
@@ -390,7 +394,7 @@
                 bootstrap.Modal.getInstance(document.getElementById('passwordModal')).hide();
                 document.getElementById('addBtn').classList.remove('d-none');
                 document.getElementById('editModeBtn').innerHTML = '🚪 Выйти из режима редактирования';
-                alert('✅ Режим редактирования включён и сохранён!');
+                alert('✅ Режим редактирования включён!');
             } else alert('❌ Неправильный пароль');
         };
 
@@ -400,11 +404,6 @@
                 bootstrap.Modal.getInstance(document.getElementById('infoModal')).hide();
             }
         };
-
-        function initMap() {
-            map = L.map('map').setView([51.1694, 71.4491], 6);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-        }
 
         function populateSelects() {
             const start = document.getElementById('startSelect');
@@ -421,21 +420,29 @@
             const startKey = document.getElementById('startSelect').value;
             const endKey = document.getElementById('endSelect').value;
             if (!startKey || !endKey || startKey === endKey) return alert('Выберите разные точки!');
-            if (routeControl) map.removeControl(routeControl);
+
             const startObj = objects.find(o => o.key === startKey);
             const endObj = objects.find(o => o.key === endKey);
-            routeControl = L.Routing.control({
-                waypoints: [L.latLng(startObj.lat, startObj.lng), L.latLng(endObj.lat, endObj.lng)],
-                router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
-                lineOptions: { styles: [{ color: '#0d6efd', weight: 6 }] },
-                showAlternatives: true,
-                fitSelectedRoutes: true
-            }).addTo(map);
+
+            if (routeControl) map.geoObjects.remove(routeControl);
+
+            routeControl = new ymaps.multiRouter.MultiRoute({
+                referencePoints: [[startObj.lat, startObj.lng], [endObj.lat, endObj.lng]],
+                params: { results: 1 }
+            }, {
+                boundsAutoApply: true,
+                wayPointStartIconColor: '#1e88e5',
+                wayPointFinishIconColor: '#d32f2f'
+            });
+
+            map.geoObjects.add(routeControl);
         };
 
         window.clearRoute = function () {
-            if (routeControl) map.removeControl(routeControl);
-            routeControl = null;
+            if (routeControl) {
+                map.geoObjects.remove(routeControl);
+                routeControl = null;
+            }
         };
 
         window.onload = function () {
@@ -443,7 +450,7 @@
             initMap();
             loadEditMode();
             loadObjects();
-            console.log('%c✅ Версия без загрузки с ПК готова!', 'color:#0d6efd;font-size:16px');
+            console.log('%c✅ Яндекс.Карты успешно подключены!', 'color:#0d6efd;font-size:16px');
         };
     </script>
 </body>
