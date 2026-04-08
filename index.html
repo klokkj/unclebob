@@ -17,20 +17,11 @@
         .object-photo { height: 180px; object-fit: cover; border-radius: 8px 8px 0 0; }
         .header { background: linear-gradient(135deg, #0d6efd, #6610f2); color: white; padding: 20px 0; }
         
-        /* Улучшенная карусель */
-        .modal-body .carousel { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-        .carousel-control-prev, .carousel-control-next { width: 70px; height: 70px; background: rgba(0,0,0,0.4); border-radius: 50%; top: 50%; transform: translateY(-50%); opacity: 1; }
-        .carousel-control-prev:hover, .carousel-control-next:hover { background: rgba(13,110,253,0.9); transform: translateY(-50%) scale(1.1); }
-        .carousel-indicators { bottom: 15px; z-index: 10; }
-        .carousel-indicators button { width: 12px; height: 12px; border-radius: 50%; background-color: #fff; opacity: 0.6; }
-        .carousel-indicators button.active { opacity: 1; background-color: #0d6efd; }
+        .carousel-control-prev, .carousel-control-next { width: 70px; height: 70px; background: rgba(0,0,0,0.4); border-radius: 50%; top: 50%; transform: translateY(-50%); }
+        .carousel-control-prev:hover, .carousel-control-next:hover { background: rgba(13,110,253,0.9); }
+        .carousel-indicators { bottom: 15px; }
         .carousel-item img { max-height: 480px; object-fit: contain; cursor: zoom-in; }
-        
         .photo-preview { max-height: 120px; object-fit: cover; border-radius: 8px; cursor: pointer; }
-        
-        /* Lightbox */
-        #lightboxModal .modal-content { background: #111; border: none; }
-        #lightboxImage { max-height: 92vh; width: auto; max-width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
     </style>
 </head>
 <body>
@@ -96,7 +87,7 @@
         </div>
     </div>
 
-    <!-- Lightbox для увеличения фото -->
+    <!-- Lightbox (увеличение фото) -->
     <div class="modal fade" id="lightboxModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content bg-dark border-0">
@@ -123,28 +114,20 @@
                         <div class="mb-3"><label>Название <span class="text-danger">*</span></label><input type="text" id="newName" class="form-control" required></div>
                         <div class="mb-3"><label>Местоположение <span class="text-danger">*</span></label><input type="text" id="newLocation" class="form-control" required></div>
                         <div class="row">
-                            <div class="col-6 mb-3"><label>Широта (lat) <span class="text-danger">*</span></label><input type="number" id="newLat" step="0.000001" class="form-control" required></div>
-                            <div class="col-6 mb-3"><label>Долгота (lng) <span class="text-danger">*</span></label><input type="number" id="newLng" step="0.000001" class="form-control" required></div>
+                            <div class="col-6 mb-3"><label>Широта <span class="text-danger">*</span></label><input type="number" id="newLat" step="0.000001" class="form-control" required></div>
+                            <div class="col-6 mb-3"><label>Долгота <span class="text-danger">*</span></label><input type="number" id="newLng" step="0.000001" class="form-control" required></div>
                         </div>
+                        
                         <div class="mb-4">
-                            <label class="form-label">Фотографии объекта</label>
+                            <label class="form-label">Фотографии объекта (по ссылке)</label>
                             <div id="currentPhotosPreview" class="d-flex flex-wrap gap-2 mb-3"></div>
-                            <div class="row g-3">
-                                <div class="col-12 col-md-6">
-                                    <div class="input-group">
-                                        <input type="url" id="newPhotoUrl" class="form-control" placeholder="https://...">
-                                        <button type="button" onclick="addPhotoByUrl()" class="btn btn-outline-primary">Добавить по ссылке</button>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <input type="file" id="photoUpload" accept="image/*" multiple class="form-control">
-                                    <small class="text-muted">Можно выбрать несколько фото сразу</small>
-                                </div>
+                            <div class="input-group">
+                                <input type="url" id="newPhotoUrl" class="form-control" placeholder="https://example.com/photo.jpg">
+                                <button type="button" onclick="addPhotoByUrl()" class="btn btn-outline-primary">Добавить фото</button>
                             </div>
-                            <button type="button" onclick="uploadSelectedFiles()" id="uploadBtn" class="btn btn-outline-success mt-2 w-100">
-                                📤 Загрузить выбранные файлы с компьютера
-                            </button>
+                            <small class="text-muted">Вставляй прямые ссылки на изображения</small>
                         </div>
+                        
                         <div class="mb-3"><label>Описание <span class="text-danger">*</span></label><textarea id="newDescription" class="form-control" rows="5" required></textarea></div>
                     </form>
                 </div>
@@ -177,7 +160,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     
     <script>
         const firebaseConfig = {
@@ -185,13 +167,12 @@
           authDomain: "uncle-bob-4bf8d.firebaseapp.com",
           databaseURL: "https://uncle-bob-4bf8d-default-rtdb.europe-west1.firebasedatabase.app",
           projectId: "uncle-bob-4bf8d",
-          storageBucket: "uncle-bob-4bf8d.firebasestorage.app",
           messagingSenderId: "989814701198",
           appId: "1:989814701198:web:cd9df2951424c8721edddf"
         };
 
         const PASSWORD = "administratorbob";
-        let firebaseApp, db, objectsRef, storageRef;
+        let firebaseApp, db, objectsRef;
         let objects = [];
         let map, markers = {}, routeControl = null;
         let currentObjectKey = null;
@@ -202,7 +183,6 @@
             firebaseApp = firebase.initializeApp(firebaseConfig);
             db = firebase.database();
             objectsRef = db.ref('historicalObjects');
-            storageRef = firebase.storage().ref();
         }
 
         function loadEditMode() {
@@ -223,7 +203,7 @@
         }
 
         function seedInitialData() {
-            const initial = [ /* те же 5 объектов, что были раньше */ 
+            const initial = [
                 { name: "Мавзолей Ходжи Ахмеда Ясави", location: "Туркестан", lat: 43.2928, lng: 68.2747, photos: ["https://picsum.photos/id/1015/800/600", "https://picsum.photos/id/1016/800/600"], description: "Один из самых значимых памятников тюркской архитектуры XIII–XIV вв." },
                 { name: "Байтерек", location: "Астана", lat: 51.1283, lng: 71.4306, photos: ["https://picsum.photos/id/1016/800/600"], description: "Символ современной Астаны." },
                 { name: "Хан Шатыр", location: "Астана", lat: 51.1322, lng: 71.4047, photos: ["https://picsum.photos/id/133/800/600", "https://picsum.photos/id/201/800/600"], description: "Самый большой шатёр в мире." },
@@ -231,7 +211,10 @@
                 { name: "Ак-Орда", location: "Астана", lat: 51.1219, lng: 71.4378, photos: ["https://picsum.photos/id/251/800/600"], description: "Официальная резиденция Президента." }
             ];
             const updates = {};
-            initial.forEach(obj => { const newKey = objectsRef.push().key; updates[newKey] = obj; });
+            initial.forEach(obj => {
+                const newKey = objectsRef.push().key;
+                updates[newKey] = obj;
+            });
             objectsRef.update(updates);
         }
 
@@ -277,9 +260,7 @@
             let carouselHTML = `<div id="photoCarousel" class="carousel slide" data-bs-ride="carousel">`;
             if (obj.photos && obj.photos.length > 0) {
                 let indicators = `<div class="carousel-indicators">`;
-                obj.photos.forEach((_, i) => {
-                    indicators += `<button type="button" data-bs-target="#photoCarousel" data-bs-slide-to="${i}" class="${i===0?'active':''}"></button>`;
-                });
+                obj.photos.forEach((_, i) => indicators += `<button type="button" data-bs-target="#photoCarousel" data-bs-slide-to="${i}" class="${i===0?'active':''}"></button>`);
                 indicators += `</div>`;
                 carouselHTML += indicators + `<div class="carousel-inner">`;
                 obj.photos.forEach((url, i) => {
@@ -289,15 +270,10 @@
             } else {
                 carouselHTML += `<div class="carousel-item active"><img src="https://picsum.photos/id/1005/800/600" onclick="enlargeImage('https://picsum.photos/id/1005/800/600')"></div>`;
             }
-            carouselHTML += `
-                <button class="carousel-control-prev" type="button" data-bs-target="#photoCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
-                <button class="carousel-control-next" type="button" data-bs-target="#photoCarousel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
-            </div>`;
+            carouselHTML += `<button class="carousel-control-prev" type="button" data-bs-target="#photoCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button><button class="carousel-control-next" type="button" data-bs-target="#photoCarousel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button></div>`;
             document.getElementById('modalBody').innerHTML = `${carouselHTML}<p class="mt-3"><strong>Местоположение:</strong> ${obj.location}</p><p><strong>Координаты:</strong> ${obj.lat}, ${obj.lng}</p><p>${obj.description}</p>`;
-            const editBtn = document.getElementById('editInModalBtn');
-            const deleteBtn = document.getElementById('deleteInModalBtn');
-            editBtn.classList.toggle('d-none', !editMode);
-            deleteBtn.classList.toggle('d-none', !editMode);
+            document.getElementById('editInModalBtn').classList.toggle('d-none', !editMode);
+            document.getElementById('deleteInModalBtn').classList.toggle('d-none', !editMode);
             new bootstrap.Modal(document.getElementById('infoModal')).show();
         }
 
@@ -345,36 +321,20 @@
             });
         }
 
-        window.removePhoto = function(index) { currentPhotos.splice(index, 1); renderCurrentPhotosPreview(); };
-        window.addPhotoByUrl = function() {
-            const url = document.getElementById('newPhotoUrl').value.trim();
-            if (url) { currentPhotos.push(url); renderCurrentPhotosPreview(); document.getElementById('newPhotoUrl').value = ''; }
+        window.removePhoto = function(index) {
+            currentPhotos.splice(index, 1);
+            renderCurrentPhotosPreview();
         };
 
-        window.uploadSelectedFiles = async function() {
-            const files = document.getElementById('photoUpload').files;
-            if (!files.length) return alert('Выберите файлы');
-            const uploadBtn = document.getElementById('uploadBtn');
-            const originalText = uploadBtn.innerHTML;
-            uploadBtn.disabled = true;
-            uploadBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Загрузка...`;
-            let success = 0;
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                uploadBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Файл ${i+1}/${files.length}...`;
-                const fileRef = storageRef.child('object-photos/' + Date.now() + '-' + file.name);
-                try {
-                    const snapshot = await fileRef.put(file);
-                    const url = await snapshot.ref.getDownloadURL();
-                    currentPhotos.push(url);
-                    success++;
-                } catch (e) { console.error(e); alert('Ошибка загрузки ' + file.name); }
+        window.addPhotoByUrl = function() {
+            const url = document.getElementById('newPhotoUrl').value.trim();
+            if (url) {
+                currentPhotos.push(url);
+                renderCurrentPhotosPreview();
+                document.getElementById('newPhotoUrl').value = '';
+            } else {
+                alert("Вставьте ссылку на фото!");
             }
-            renderCurrentPhotosPreview();
-            document.getElementById('photoUpload').value = '';
-            uploadBtn.disabled = false;
-            uploadBtn.innerHTML = originalText;
-            if (success > 0) alert(`✅ Успешно загружено ${success} фото!`);
         };
 
         function showAddModal() {
@@ -392,13 +352,22 @@
             const lat = parseFloat(document.getElementById('newLat').value);
             const lng = parseFloat(document.getElementById('newLng').value);
             const description = document.getElementById('newDescription').value.trim();
-            if (!name || !location || isNaN(lat) || isNaN(lng) || !description) return alert('Заполните все поля!');
-            const objData = { name, location, lat, lng, photos: currentPhotos.length ? currentPhotos : ["https://picsum.photos/id/1005/800/600"], description };
+            if (!name || !location || isNaN(lat) || isNaN(lng) || !description) return alert('Заполните все обязательные поля!');
+            
+            const objData = {
+                name,
+                location,
+                lat,
+                lng,
+                photos: currentPhotos.length ? currentPhotos : ["https://picsum.photos/id/1005/800/600"],
+                description
+            };
+
             const modal = bootstrap.Modal.getInstance(document.getElementById('addModal'));
             if (currentObjectKey) {
-                objectsRef.child(currentObjectKey).update(objData).then(() => { alert('✅ Обновлено!'); modal.hide(); });
+                objectsRef.child(currentObjectKey).update(objData).then(() => { alert('✅ Объект обновлён!'); modal.hide(); });
             } else {
-                objectsRef.push(objData).then(() => { alert('✅ Добавлено!'); modal.hide(); });
+                objectsRef.push(objData).then(() => { alert('✅ Новый объект добавлен!'); modal.hide(); });
             }
         };
 
@@ -443,7 +412,8 @@
             start.innerHTML = end.innerHTML = '<option value="">Выберите...</option>';
             objects.forEach(obj => {
                 const opt = `<option value="${obj.key}">${obj.name} (${obj.location})</option>`;
-                start.innerHTML += opt; end.innerHTML += opt;
+                start.innerHTML += opt;
+                end.innerHTML += opt;
             });
         }
 
@@ -473,7 +443,7 @@
             initMap();
             loadEditMode();
             loadObjects();
-            console.log('%c✅ Полная версия с сохранением режима и улучшенной загрузкой готова!', 'color:#0d6efd;font-size:16px');
+            console.log('%c✅ Версия без загрузки с ПК готова!', 'color:#0d6efd;font-size:16px');
         };
     </script>
 </body>
