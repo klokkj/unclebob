@@ -69,7 +69,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно с каруселью -->
+    <!-- Модальное окно информации -->
     <div class="modal fade" id="infoModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -203,104 +203,5 @@
         }
 
         function seedInitialData() {
-            const initial = [ /* твои 5 базовых объектов */ 
-                { name: "Мавзолей Ходжи Ахмеда Ясави", location: "Туркестан", lat: 43.2928, lng: 68.2747, photos: ["https://picsum.photos/id/1015/800/600"], description: "Один из самых значимых памятников..." },
-                { name: "Байтерек", location: "Астана", lat: 51.1283, lng: 71.4306, photos: ["https://picsum.photos/id/1016/800/600"], description: "Символ современной Астаны." }
-                // Добавь остальные при необходимости
-            ];
-            const updates = {};
-            initial.forEach(obj => {
-                const newKey = objectsRef.push().key;
-                updates[newKey] = obj;
-            });
-            objectsRef.update(updates);
-        }
-
-        function refreshAll() {
-            Object.values(markers).forEach(m => map.removeLayer(m));
-            markers = {};
-            objects.forEach(obj => {
-                const marker = L.marker([obj.lat, obj.lng]).addTo(map);
-                marker.bindPopup(`<b>${obj.name}</b><br>${obj.location}`);
-                markers[obj.key] = marker;
-            });
-            renderCards();
-            populateSelects();
-        }
-
-        function renderCards() {
-            const container = document.getElementById('cardsContainer');
-            container.innerHTML = '';
-            document.getElementById('count').textContent = objects.length;
-
-            objects.forEach(obj => {
-                const firstPhoto = obj.photos && obj.photos[0] ? obj.photos[0] : 'https://picsum.photos/id/1005/800/600';
-                const extra = obj.photos && obj.photos.length > 1 ? `<span class="badge bg-primary position-absolute top-0 end-0 m-2">+${obj.photos.length-1}</span>` : '';
-                
-                const card = document.createElement('div');
-                card.className = 'col-12';
-                card.innerHTML = `
-                    <div class="card h-100 shadow-sm position-relative">
-                        <img src="${firstPhoto}" class="object-photo w-100">
-                        ${extra}
-                        <div class="card-body">
-                            <h6 class="card-title">${obj.name}</h6>
-                            <p class="text-muted small">${obj.location}</p>
-                            <p class="card-text small">${(obj.description || '').substring(0,110)}...</p>
-                        </div>
-                    </div>`;
-                card.onclick = () => showInfoModal(obj);
-                container.appendChild(card);
-            });
-        }
-
-        function showInfoModal(obj) {
-            currentObjectKey = obj.key;
-            document.getElementById('modalTitle').textContent = obj.name;
-
-            let carousel = `<div id="photoCarousel" class="carousel slide" data-bs-ride="carousel">
-                <div class="carousel-indicators">`;
-            (obj.photos || []).forEach((_, i) => {
-                carousel += `<button type="button" data-bs-target="#photoCarousel" data-bs-slide-to="${i}" class="${i===0?'active':''}"></button>`;
-            });
-            carousel += `</div><div class="carousel-inner">`;
-
-            (obj.photos || []).forEach((url, i) => {
-                carousel += `<div class="carousel-item ${i===0?'active':''}">
-                    <img src="${url}" class="d-block w-100" onclick="window.open('${url}','_blank')">
-                </div>`;
-            });
-            carousel += `</div>
-                <button class="carousel-control-prev" type="button" data-bs-target="#photoCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
-                <button class="carousel-control-next" type="button" data-bs-target="#photoCarousel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
-            </div>`;
-
-            document.getElementById('modalBody').innerHTML = `
-                ${carousel}
-                <p class="mt-3"><strong>Местоположение:</strong> ${obj.location}</p>
-                <p><strong>Координаты:</strong> ${obj.lat.toFixed(4)}, ${obj.lng.toFixed(4)}</p>
-                <p>${obj.description || ''}</p>
-            `;
-
-            document.getElementById('editInModalBtn').classList.toggle('d-none', !editMode);
-            document.getElementById('deleteInModalBtn').classList.toggle('d-none', !editMode);
-
-            new bootstrap.Modal(document.getElementById('infoModal')).show();
-        }
-
-        // Остальные функции (saveObject, uploadSelectedFiles, toggleEditMode и т.д.) полностью рабочие
-        // (я оставил только ключевые, но в реальном коде они все есть)
-
-        window.onload = function () {
-            initFirebase();
-            initMap();
-            loadObjects();
-            console.log('%c✅ Всё исправлено! Листлет + улучшенная карусель', 'color:#0d6efd;font-size:16px');
-        };
-    </script>
-
-    <footer class="text-center py-4 text-muted small">
-        Проектная работа
-    </footer>
-</body>
-</html>
+            const initial = [
+                { name: "Мавзолей Ходжи Ахмеда Ясави",
