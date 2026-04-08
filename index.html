@@ -19,6 +19,9 @@
         .carousel-indicators { bottom: 15px; }
         .carousel-item img { max-height: 480px; object-fit: contain; cursor: zoom-in; }
         .photo-preview { max-height: 120px; object-fit: cover; border-radius: 8px; cursor: pointer; }
+
+        .route-item { transition: all 0.2s; }
+        #routeStats { font-size: 1.1rem; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -53,29 +56,23 @@
             </div>
             <div class="col-lg-7 col-xl-8">
                 <div id="map"></div>
+
+                <!-- БЛОК СЛОЖНОГО МАРШРУТА -->
                 <div class="mt-3 p-3 bg-light rounded-3">
-                    <h5 class="mb-3">🛤️ Построить маршрут (Яндекс.Карты)</h5>
-                    <div class="row g-3">
-                        <div class="col-md-5">
-                            <label class="form-label">Старт</label>
-                            <select id="startSelect" class="form-select mb-2"></select>
-                            <input type="text" id="startAddress" class="form-control" placeholder="Или введите адрес вручную (например: Астана, Мангилик Ел 10)">
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label">Финиш</label>
-                            <select id="endSelect" class="form-select mb-2"></select>
-                            <input type="text" id="endAddress" class="form-control" placeholder="Или введите адрес вручную">
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button onclick="buildRoute()" class="btn btn-primary w-100">🚀 Построить</button>
-                        </div>
-                    </div>
+                    <h5 class="mb-3">🛤️ Сложный маршрут (несколько объектов)</h5>
+                    <div id="routeList" class="mb-3"></div>
+                    
+                    <!-- Статистика расстояния и времени -->
+                    <div id="routeStats" class="alert alert-info d-none"></div>
+                    
+                    <button onclick="buildMultiRoute()" class="btn btn-primary w-100 mb-2">🚀 Построить маршрут по всем точкам</button>
+                    <small class="text-muted">Добавляйте объекты → меняйте порядок ↑↓ → смотрите расстояние и время</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно информации -->
+    <!-- Модальные окна -->
     <div class="modal fade" id="infoModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -86,6 +83,7 @@
                 <div class="modal-body" id="modalBody"></div>
                 <div class="modal-footer">
                     <button onclick="goToObjectFromModal()" class="btn btn-primary">📍 Показать на карте</button>
+                    <button onclick="addCurrentToRouteFromModal()" class="btn btn-success">➕ Добавить в маршрут</button>
                     <button id="editInModalBtn" onclick="hideInfoAndEdit()" class="btn btn-warning d-none">✏️ Редактировать</button>
                     <button id="deleteInModalBtn" onclick="deleteCurrentObject()" class="btn btn-danger d-none">🗑 Удалить</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -94,7 +92,6 @@
         </div>
     </div>
 
-    <!-- Lightbox -->
     <div class="modal fade" id="lightboxModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content bg-dark border-0">
@@ -108,7 +105,6 @@
         </div>
     </div>
 
-    <!-- Добавление/редактирование -->
     <div class="modal fade" id="addModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -143,7 +139,6 @@
         </div>
     </div>
 
-    <!-- Пароль -->
     <div class="modal fade" id="passwordModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -177,10 +172,12 @@
         const PASSWORD = "administratorbob";
         let firebaseApp, db, objectsRef;
         let objects = [];
-        let map, markers = {}, routeControl = null;
+        let map, markers = {};
+        let routeControl = null;
         let currentObjectKey = null;
         let editMode = false;
         let currentPhotos = [];
+        let routePoints = []; // массив точек сложного маршрута
 
         function initFirebase() {
             firebaseApp = firebase.initializeApp(firebaseConfig);
@@ -246,7 +243,7 @@
                 markers[obj.key] = placemark;
             });
             renderCards();
-            populateSelects();
+            renderRouteList();
         }
 
         function renderCards() {
@@ -266,13 +263,110 @@
                             <h6 class="card-title">${obj.name}</h6>
                             <p class="text-muted small">${obj.location}</p>
                             <p class="card-text small">${obj.description.substring(0, 110)}...</p>
+                            <button onclick="event.stopImmediatePropagation(); addToRoute('${obj.key}');" class="btn btn-sm btn-outline-success w-100 mt-2">➕ Добавить в маршрут</button>
                         </div>
                     </div>`;
-                card.onclick = () => showInfoModal(obj);
+                card.onclick = (e) => { if (!e.target.closest('button')) showInfoModal(obj); };
                 container.appendChild(card);
             });
         }
 
+        function addToRoute(key) {
+            const obj = objects.find(o => o.key === key);
+            if (!obj) return;
+            if (routePoints.find(p => p.key === key)) return alert('Этот объект уже в маршруте!');
+            routePoints.push({ key: obj.key, name: obj.name, location: obj.location, lat: obj.lat, lng: obj.lng });
+            renderRouteList();
+            alert(`✅ ${obj.name} добавлен в маршрут`);
+        }
+
+        window.addCurrentToRouteFromModal = function() {
+            if (currentObjectKey) addToRoute(currentObjectKey);
+            bootstrap.Modal.getInstance(document.getElementById('infoModal')).hide();
+        };
+
+        function renderRouteList() {
+            const container = document.getElementById('routeList');
+            container.innerHTML = '';
+            if (routePoints.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center py-3">Пока нет точек в маршруте.<br>Нажмите «Добавить в маршрут» на карточках объектов.</p>';
+                document.getElementById('routeStats').classList.add('d-none');
+                return;
+            }
+            const ul = document.createElement('ul');
+            ul.className = 'list-group';
+            routePoints.forEach((point, index) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item route-item d-flex justify-content-between align-items-center';
+                li.innerHTML = `
+                    <span><strong>${index + 1}.</strong> ${point.name} <small class="text-muted">(${point.location})</small></span>
+                    <div>
+                        <button onclick="moveRoutePoint(${index}, -1)" class="btn btn-sm btn-outline-secondary me-1">↑</button>
+                        <button onclick="moveRoutePoint(${index}, 1)" class="btn btn-sm btn-outline-secondary me-1">↓</button>
+                        <button onclick="removeFromRoute(${index})" class="btn btn-sm btn-outline-danger">✕</button>
+                    </div>`;
+                ul.appendChild(li);
+            });
+            container.appendChild(ul);
+        }
+
+        window.moveRoutePoint = function(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= routePoints.length) return;
+            [routePoints[index], routePoints[newIndex]] = [routePoints[newIndex], routePoints[index]];
+            renderRouteList();
+        };
+
+        window.removeFromRoute = function(index) {
+            routePoints.splice(index, 1);
+            renderRouteList();
+        };
+
+        window.buildMultiRoute = function() {
+            if (routePoints.length < 2) return alert('Добавьте минимум 2 точки в маршрут!');
+
+            const referencePoints = routePoints.map(p => [p.lat, p.lng]);
+
+            if (routeControl) map.geoObjects.remove(routeControl);
+
+            routeControl = new ymaps.multiRouter.MultiRoute({
+                referencePoints: referencePoints,
+                params: { results: 1 }
+            }, {
+                boundsAutoApply: true,
+                wayPointStartIconColor: '#1e88e5',
+                wayPointFinishIconColor: '#d32f2f',
+                wayPointIconColor: '#43a047'
+            });
+
+            map.geoObjects.add(routeControl);
+
+            // === РАСЧЁТ ВРЕМЕНИ И РАССТОЯНИЯ ===
+            routeControl.model.events.add('update', () => {
+                const activeRoute = routeControl.getActiveRoute();
+                if (activeRoute) {
+                    const distanceText = activeRoute.properties.get('distance').text;   // например "245 км"
+                    const durationText = activeRoute.properties.get('duration').text;   // например "3 ч 15 мин"
+                    document.getElementById('routeStats').innerHTML = `
+                        <i class="bi bi-road"></i> <strong>Общее расстояние:</strong> ${distanceText}<br>
+                        <i class="bi bi-clock"></i> <strong>Примерное время в пути:</strong> ${durationText}
+                    `;
+                    document.getElementById('routeStats').classList.remove('d-none');
+                }
+            });
+        };
+
+        window.clearRoute = function() {
+            routePoints = [];
+            if (routeControl) {
+                map.geoObjects.remove(routeControl);
+                routeControl = null;
+            }
+            renderRouteList();
+            document.getElementById('routeStats').classList.add('d-none');
+        };
+
+        // ==================== ОСТАЛЬНЫЕ ФУНКЦИИ ====================
         function showInfoModal(obj) {
             currentObjectKey = obj.key;
             document.getElementById('modalTitle').textContent = obj.name;
@@ -408,97 +502,12 @@
             }
         };
 
-        function populateSelects() {
-            const start = document.getElementById('startSelect');
-            const end = document.getElementById('endSelect');
-            start.innerHTML = end.innerHTML = '<option value="">Выберите объект...</option>';
-            objects.forEach(obj => {
-                const opt = `<option value="${obj.key}">${obj.name} (${obj.location})</option>`;
-                start.innerHTML += opt;
-                end.innerHTML += opt;
-            });
-        }
-
-        // ===================== ИСПРАВЛЕННЫЙ МАРШРУТ =====================
-        window.buildRoute = async function () {
-            const startSelectVal = document.getElementById('startSelect').value;
-            const endSelectVal = document.getElementById('endSelect').value;
-            const startAddr = document.getElementById('startAddress').value.trim();
-            const endAddr = document.getElementById('endAddress').value.trim();
-
-            let startPoint, endPoint;
-
-            try {
-                // === СТАРТ ===
-                if (startAddr) {
-                    console.log('🔍 Геокодируем старт:', startAddr);
-                    const res = await ymaps.geocode(startAddr, { results: 1, lang: 'ru_RU' });
-                    const geo = res.geoObjects.get(0);
-                    if (geo) {
-                        startPoint = geo.geometry.getCoordinates();
-                        console.log('✅ Старт найден:', startPoint);
-                    } else {
-                        return alert('Не удалось найти адрес старта.\nПопробуйте более точный адрес (город + улица + номер дома)');
-                    }
-                } else if (startSelectVal) {
-                    const obj = objects.find(o => o.key === startSelectVal);
-                    if (obj) startPoint = [obj.lat, obj.lng];
-                } else {
-                    return alert('Укажите точку старта (выберите объект или введите адрес)');
-                }
-
-                // === ФИНИШ ===
-                if (endAddr) {
-                    console.log('🔍 Геокодируем финиш:', endAddr);
-                    const res = await ymaps.geocode(endAddr, { results: 1, lang: 'ru_RU' });
-                    const geo = res.geoObjects.get(0);
-                    if (geo) {
-                        endPoint = geo.geometry.getCoordinates();
-                        console.log('✅ Финиш найден:', endPoint);
-                    } else {
-                        return alert('Не удалось найти адрес финиша.\nПопробуйте более точный адрес (город + улица + номер дома)');
-                    }
-                } else if (endSelectVal) {
-                    const obj = objects.find(o => o.key === endSelectVal);
-                    if (obj) endPoint = [obj.lat, obj.lng];
-                } else {
-                    return alert('Укажите точку финиша (выберите объект или введите адрес)');
-                }
-
-                if (routeControl) map.geoObjects.remove(routeControl);
-
-                routeControl = new ymaps.multiRouter.MultiRoute({
-                    referencePoints: [startPoint, endPoint],
-                    params: { results: 1 }
-                }, {
-                    boundsAutoApply: true,
-                    wayPointStartIconColor: '#1e88e5',
-                    wayPointFinishIconColor: '#d32f2f'
-                });
-
-                map.geoObjects.add(routeControl);
-                console.log('🚀 Маршрут успешно построен!');
-            } catch (e) {
-                console.error('❌ Ошибка построения маршрута:', e);
-                alert('Ошибка при построении маршрута:\n' + e.message);
-            }
-        };
-
-        window.clearRoute = function () {
-            if (routeControl) {
-                map.geoObjects.remove(routeControl);
-                routeControl = null;
-            }
-            document.getElementById('startAddress').value = '';
-            document.getElementById('endAddress').value = '';
-        };
-
         window.onload = function () {
             initFirebase();
             initMap();
             loadEditMode();
             loadObjects();
-            console.log('%c✅ Яндекс.Карты + исправленный маршрут готовы!', 'color:#0d6efd;font-size:16px');
+            console.log('%c✅ Сложный маршрут + расчёт расстояния и времени готов!', 'color:#0d6efd;font-size:16px');
         };
     </script>
 </body>
