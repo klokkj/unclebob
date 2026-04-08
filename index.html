@@ -54,11 +54,23 @@
             <div class="col-lg-7 col-xl-8">
                 <div id="map"></div>
                 <div class="mt-3 p-3 bg-light rounded-3">
-                    <h5 class="mb-3">🛤️ Построить маршрут (Яндекс)</h5>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-5"><label class="form-label">Старт</label><select id="startSelect" class="form-select"></select></div>
-                        <div class="col-md-5"><label class="form-label">Финиш</label><select id="endSelect" class="form-select"></select></div>
-                        <div class="col-md-2"><button onclick="buildRoute()" class="btn btn-primary w-100">🚀 Построить</button></div>
+                    <h5 class="mb-3">🛤️ Построить маршрут (Яндекс.Карты)</h5>
+                    <div class="row g-3">
+                        <!-- Старт -->
+                        <div class="col-md-5">
+                            <label class="form-label">Старт</label>
+                            <select id="startSelect" class="form-select mb-2"></select>
+                            <input type="text" id="startAddress" class="form-control" placeholder="Или введите адрес вручную (например: Астана, проспект Мира 10)">
+                        </div>
+                        <!-- Финиш -->
+                        <div class="col-md-5">
+                            <label class="form-label">Финиш</label>
+                            <select id="endSelect" class="form-select mb-2"></select>
+                            <input type="text" id="endAddress" class="form-control" placeholder="Или введите адрес вручную">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button onclick="buildRoute()" class="btn btn-primary w-100">🚀 Построить</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -231,9 +243,7 @@
                     hintContent: obj.name,
                     balloonContentHeader: obj.name,
                     balloonContentBody: `<strong>${obj.location}</strong><br>${obj.description.substring(0, 120)}...`
-                }, {
-                    preset: 'islands#blueDotIcon'
-                });
+                }, { preset: 'islands#blueDotIcon' });
 
                 placemark.events.add('click', () => showInfoModal(obj));
                 map.geoObjects.add(placemark);
@@ -285,7 +295,6 @@
                 carouselHTML += `<div class="carousel-item active"><img src="https://picsum.photos/id/1005/800/600" onclick="enlargeImage('https://picsum.photos/id/1005/800/600')"></div>`;
             }
             carouselHTML += `<button class="carousel-control-prev" type="button" data-bs-target="#photoCarousel" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button><button class="carousel-control-next" type="button" data-bs-target="#photoCarousel" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button></div>`;
-            
             document.getElementById('modalBody').innerHTML = `${carouselHTML}<p class="mt-3"><strong>Местоположение:</strong> ${obj.location}</p><p><strong>Координаты:</strong> ${obj.lat}, ${obj.lng}</p><p>${obj.description}</p>`;
             document.getElementById('editInModalBtn').classList.toggle('d-none', !editMode);
             document.getElementById('deleteInModalBtn').classList.toggle('d-none', !editMode);
@@ -365,7 +374,6 @@
             const lng = parseFloat(document.getElementById('newLng').value);
             const description = document.getElementById('newDescription').value.trim();
             if (!name || !location || isNaN(lat) || isNaN(lng) || !description) return alert('Заполните все обязательные поля!');
-            
             const objData = { name, location, lat, lng, photos: currentPhotos.length ? currentPhotos : ["https://picsum.photos/id/1005/800/600"], description };
             const modal = bootstrap.Modal.getInstance(document.getElementById('addModal'));
             if (currentObjectKey) {
@@ -408,7 +416,7 @@
         function populateSelects() {
             const start = document.getElementById('startSelect');
             const end = document.getElementById('endSelect');
-            start.innerHTML = end.innerHTML = '<option value="">Выберите...</option>';
+            start.innerHTML = end.innerHTML = '<option value="">Выберите объект...</option>';
             objects.forEach(obj => {
                 const opt = `<option value="${obj.key}">${obj.name} (${obj.location})</option>`;
                 start.innerHTML += opt;
@@ -416,18 +424,49 @@
             });
         }
 
-        window.buildRoute = function () {
-            const startKey = document.getElementById('startSelect').value;
-            const endKey = document.getElementById('endSelect').value;
-            if (!startKey || !endKey || startKey === endKey) return alert('Выберите разные точки!');
+        // ===================== ИСПРАВЛЕННЫЙ МАРШРУТ =====================
+        window.buildRoute = async function () {
+            const startSelectVal = document.getElementById('startSelect').value;
+            const endSelectVal = document.getElementById('endSelect').value;
+            const startAddr = document.getElementById('startAddress').value.trim();
+            const endAddr = document.getElementById('endAddress').value.trim();
 
-            const startObj = objects.find(o => o.key === startKey);
-            const endObj = objects.find(o => o.key === endKey);
+            let startPoint, endPoint;
+
+            // === Старт ===
+            if (startAddr) {
+                try {
+                    const res = await ymaps.geocode(startAddr, { results: 1 });
+                    const geo = res.geoObjects.get(0);
+                    if (geo) startPoint = geo.geometry.getCoordinates();
+                    else return alert('Не удалось найти введённый адрес старта');
+                } catch (e) { return alert('Ошибка поиска адреса старта'); }
+            } else if (startSelectVal) {
+                const obj = objects.find(o => o.key === startSelectVal);
+                startPoint = [obj.lat, obj.lng];
+            } else {
+                return alert('Укажите точку старта (выберите объект или введите адрес)');
+            }
+
+            // === Финиш ===
+            if (endAddr) {
+                try {
+                    const res = await ymaps.geocode(endAddr, { results: 1 });
+                    const geo = res.geoObjects.get(0);
+                    if (geo) endPoint = geo.geometry.getCoordinates();
+                    else return alert('Не удалось найти введённый адрес финиша');
+                } catch (e) { return alert('Ошибка поиска адреса финиша'); }
+            } else if (endSelectVal) {
+                const obj = objects.find(o => o.key === endSelectVal);
+                endPoint = [obj.lat, obj.lng];
+            } else {
+                return alert('Укажите точку финиша (выберите объект или введите адрес)');
+            }
 
             if (routeControl) map.geoObjects.remove(routeControl);
 
             routeControl = new ymaps.multiRouter.MultiRoute({
-                referencePoints: [[startObj.lat, startObj.lng], [endObj.lat, endObj.lng]],
+                referencePoints: [startPoint, endPoint],
                 params: { results: 1 }
             }, {
                 boundsAutoApply: true,
@@ -443,6 +482,9 @@
                 map.geoObjects.remove(routeControl);
                 routeControl = null;
             }
+            // Очищаем поля адресов
+            document.getElementById('startAddress').value = '';
+            document.getElementById('endAddress').value = '';
         };
 
         window.onload = function () {
@@ -450,7 +492,7 @@
             initMap();
             loadEditMode();
             loadObjects();
-            console.log('%c✅ Яндекс.Карты успешно подключены!', 'color:#0d6efd;font-size:16px');
+            console.log('%c✅ Яндекс.Карты + ручные адреса работают!', 'color:#0d6efd;font-size:16px');
         };
     </script>
 </body>
