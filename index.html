@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Каталог исторических объектов</title>
     
-    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet Routing Machine -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <style>
@@ -26,79 +23,48 @@
     <header class="header text-center">
         <div class="container">
             <h1 class="display-5 fw-bold">📍 Каталог исторических объектов Казахстана</h1>
-            <p class="lead">Интерактивная карта • Карточки • Поиск • Маршруты • Добавление / Редактирование</p>
-            <p class="mb-0">Практическая проектная работа • Данные сохраняются в браузере</p>
+            <p class="lead">Интерактивная карта • Редактирование по паролю • Данные в облаке</p>
         </div>
     </header>
 
     <div class="container mt-4">
-        <!-- Заголовок списка + кнопки -->
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0">Объекты (<span id="count">0</span>)</h4>
+            <h4>Объекты (<span id="count">0</span>)</h4>
             <div>
-                <button onclick="clearRoute()" class="btn btn-outline-danger btn-sm me-2">
-                    🗑 Очистить маршрут
-                </button>
-                <button onclick="clearAllAdded()" class="btn btn-outline-warning btn-sm me-2">
-                    🗑 Очистить добавленные объекты
-                </button>
-                <button onclick="showAddModal()" class="btn btn-success btn-sm">
-                    ➕ Добавить объект
-                </button>
+                <button onclick="clearRoute()" class="btn btn-outline-danger btn-sm me-2">🗑 Очистить маршрут</button>
+                <button onclick="toggleEditMode()" id="editModeBtn" class="btn btn-outline-primary btn-sm">🔐 Войти в режим редактирования</button>
+                <button onclick="showAddModal()" id="addBtn" class="btn btn-success btn-sm d-none">➕ Добавить объект</button>
             </div>
         </div>
 
-        <!-- Поиск -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="input-group">
                     <span class="input-group-text">🔎</span>
-                    <input type="text" id="searchInput" class="form-control form-control-lg" 
-                           placeholder="Поиск по названию, описанию или городу...">
+                    <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="Поиск по названию или городу...">
                 </div>
             </div>
         </div>
 
         <div class="row">
-            <!-- Список карточек -->
             <div class="col-lg-5 col-xl-4">
-                <div id="cardsContainer" class="row row-cols-1 g-3 overflow-auto" style="max-height: 650px;">
-                    <!-- Карточки генерируются JavaScript -->
-                </div>
+                <div id="cardsContainer" class="row row-cols-1 g-3 overflow-auto" style="max-height: 650px;"></div>
             </div>
-
-            <!-- Карта + маршрут -->
             <div class="col-lg-7 col-xl-8">
                 <div id="map"></div>
-
-                <!-- Панель маршрута -->
                 <div class="mt-3 p-3 bg-light rounded-3">
                     <h5 class="mb-3">🛤️ Построить маршрут</h5>
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-5">
-                            <label class="form-label">Откуда (старт)</label>
-                            <select id="startSelect" class="form-select"></select>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label">Куда (финиш)</label>
-                            <select id="endSelect" class="form-select"></select>
-                        </div>
-                        <div class="col-md-2">
-                            <button onclick="buildRoute()" class="btn btn-primary w-100">
-                                🚀 Построить маршрут
-                            </button>
-                        </div>
+                        <div class="col-md-5"><label class="form-label">Старт</label><select id="startSelect" class="form-select"></select></div>
+                        <div class="col-md-5"><label class="form-label">Финиш</label><select id="endSelect" class="form-select"></select></div>
+                        <div class="col-md-2"><button onclick="buildRoute()" class="btn btn-primary w-100">🚀 Построить</button></div>
                     </div>
-                    <small class="text-muted d-block mt-2">
-                        Маршрут строится через бесплатный сервис OSRM.<br>
-                        Можно кликать прямо по маркерам на карте.
-                    </small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно подробной информации -->
+    <!-- Модальное окно информации -->
     <div class="modal fade" id="infoModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -109,280 +75,200 @@
                 <div class="modal-body" id="modalBody"></div>
                 <div class="modal-footer">
                     <button onclick="goToObjectFromModal()" class="btn btn-primary">📍 Показать на карте</button>
+                    <button id="editInModalBtn" onclick="hideInfoAndEdit()" class="btn btn-warning d-none">✏️ Редактировать</button>
+                    <button id="deleteInModalBtn" onclick="deleteCurrentObject()" class="btn btn-danger d-none">🗑 Удалить</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно добавления / редактирования -->
+    <!-- Модальное окно добавления/редактирования -->
     <div class="modal fade" id="addModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addModalTitle">➕ Добавить новый объект</h5>
+                    <h5 class="modal-title" id="addModalTitle">➕ Добавить объект</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addForm">
-                        <div class="mb-3">
-                            <label class="form-label">Название объекта <span class="text-danger">*</span></label>
-                            <input type="text" id="newName" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Город / Местоположение <span class="text-danger">*</span></label>
-                            <input type="text" id="newLocation" class="form-control" required>
-                        </div>
+                        <div class="mb-3"><label>Название <span class="text-danger">*</span></label><input type="text" id="newName" class="form-control" required></div>
+                        <div class="mb-3"><label>Местоположение <span class="text-danger">*</span></label><input type="text" id="newLocation" class="form-control" required></div>
                         <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Широта (lat) <span class="text-danger">*</span></label>
-                                <input type="number" id="newLat" step="0.000001" class="form-control" required>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Долгота (lng) <span class="text-danger">*</span></label>
-                                <input type="number" id="newLng" step="0.000001" class="form-control" required>
-                            </div>
+                            <div class="col-6 mb-3"><label>Широта (lat) <span class="text-danger">*</span></label><input type="number" id="newLat" step="0.000001" class="form-control" required></div>
+                            <div class="col-6 mb-3"><label>Долгота (lng) <span class="text-danger">*</span></label><input type="number" id="newLng" step="0.000001" class="form-control" required></div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Ссылка на фото (необязательно)</label>
-                            <input type="url" id="newPhoto" class="form-control" placeholder="https://...">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Описание <span class="text-danger">*</span></label>
-                            <textarea id="newDescription" class="form-control" rows="5" required></textarea>
-                        </div>
+                        <div class="mb-3"><label>Ссылка на фото</label><input type="url" id="newPhoto" class="form-control"></div>
+                        <div class="mb-3"><label>Описание <span class="text-danger">*</span></label><textarea id="newDescription" class="form-control" rows="5" required></textarea></div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button id="saveBtn" onclick="saveObject()" class="btn btn-success">Добавить объект</button>
+                    <button onclick="saveObject()" class="btn btn-success">Сохранить</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Скрипты -->
+    <!-- Окно ввода пароля -->
+    <div class="modal fade" id="passwordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5>🔐 Режим редактирования</h5></div>
+                <div class="modal-body">
+                    <p>Введите пароль:</p>
+                    <input type="password" id="passwordInput" class="form-control" placeholder="Пароль">
+                </div>
+                <div class="modal-footer">
+                    <button onclick="checkPassword()" class="btn btn-primary">Войти</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Firebase Compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        // ==================== БАЗОВЫЕ ОБЪЕКТЫ (всегда остаются) ====================
-        const BASE_OBJECTS = [
-            {
-                id: 1,
-                name: "Мавзолей Ходжи Ахмеда Ясави",
-                location: "Туркестан",
-                lat: 43.2928,
-                lng: 68.2747,
-                photo: "https://picsum.photos/id/1015/800/600",
-                description: "Один из самых значимых памятников тюркской архитектуры XIII–XIV вв. Объект Всемирного наследия ЮНЕСКО. Здесь похоронен великий суфийский поэт и проповедник."
-            },
-            {
-                id: 2,
-                name: "Байтерек",
-                location: "Астана",
-                lat: 51.1283,
-                lng: 71.4306,
-                photo: "https://picsum.photos/id/1016/800/600",
-                description: "Символ современной Астаны. Башня высотой 97 метров. Смотровая площадка с панорамой города и яйцом Самрука — легендарной птицы счастья."
-            },
-            {
-                id: 3,
-                name: "Хан Шатыр",
-                location: "Астана",
-                lat: 51.1322,
-                lng: 71.4047,
-                photo: "https://picsum.photos/id/133/800/600",
-                description: "Самый большой шатёр в мире (2010). Архитектурный шедевр, воплощающий традиции казахского юртостроения в современном исполнении."
-            },
-            {
-                id: 4,
-                name: "Мечеть Нур-Астана",
-                location: "Астана",
-                lat: 51.1406,
-                lng: 71.4703,
-                photo: "https://picsum.photos/id/201/800/600",
-                description: "Одна из крупнейших мечетей Центральной Азии. Построена в 2005 году. Символ мира и духовности Казахстана."
-            },
-            {
-                id: 5,
-                name: "Ак-Орда (Дворец Президента)",
-                location: "Астана",
-                lat: 51.1219,
-                lng: 71.4378,
-                photo: "https://picsum.photos/id/251/800/600",
-                description: "Официальная резиденция Президента Республики Казахстан. Архитектурный комплекс, сочетающий современный стиль и национальные мотивы."
-            }
-        ];
+        // ==================== ТВОЙ FIREBASE CONFIG ====================
+        const firebaseConfig = {
+          apiKey: "AIzaSyDc_Enuh24ep2DjeTcahKj4ZTVabY6rx8c",
+          authDomain: "uncle-bob-4bf8d.firebaseapp.com",
+          databaseURL: "https://uncle-bob-4bf8d-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "uncle-bob-4bf8d",
+          storageBucket: "uncle-bob-4bf8d.firebasestorage.app",
+          messagingSenderId: "989814701198",
+          appId: "1:989814701198:web:cd9df2951424c8721edddf",
+          measurementId: "G-WJJY8EZ4FZ"
+        };
 
-        // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+        const PASSWORD = "admin";   // ← Пароль для редактирования
+
+        let firebaseApp, db, objectsRef;
         let objects = [];
-        let userAdded = [];
-        let map;
-        let markers = {};
-        let routeControl = null;
-        let currentObjectId = null;     // для модального окна информации
-        let editingId = null;           // null = добавление, число = редактирование
-        let currentSearchTerm = '';
+        let map, markers = {}, routeControl = null;
+        let currentObjectKey = null;
+        let editMode = false;
 
-        // ==================== ЗАГРУЗКА / СОХРАНЕНИЕ В LOCALSTORAGE ====================
-        function loadData() {
-            const saved = localStorage.getItem('userAddedHistoricalObjects');
-            userAdded = saved ? JSON.parse(saved) : [];
+        function initFirebase() {
+            firebaseApp = firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            objectsRef = db.ref('historicalObjects');
         }
 
-        function saveData() {
-            localStorage.setItem('userAddedHistoricalObjects', JSON.stringify(userAdded));
+        function loadObjects() {
+            objectsRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                objects = data ? Object.keys(data).map(key => ({ key, ...data[key] })) : [];
+
+                if (objects.length === 0) {
+                    seedInitialData();
+                    return;
+                }
+                refreshMapAndCards();
+            });
         }
 
-        // ==================== ОБНОВЛЕНИЕ ВСЕГО (объекты + маркеры + карточки) ====================
-        function refreshAll() {
-            // Формируем полный список
-            objects = [
-                ...BASE_OBJECTS.map(obj => ({ ...obj, isUserAdded: false })),
-                ...userAdded.map(obj => ({ ...obj, isUserAdded: true }))
+        function seedInitialData() {
+            const initial = [
+                { name: "Мавзолей Ходжи Ахмеда Ясави", location: "Туркестан", lat: 43.2928, lng: 68.2747, photo: "https://picsum.photos/id/1015/800/600", description: "Один из самых значимых памятников тюркской архитектуры XIII–XIV вв. Объект Всемирного наследия ЮНЕСКО." },
+                { name: "Байтерек", location: "Астана", lat: 51.1283, lng: 71.4306, photo: "https://picsum.photos/id/1016/800/600", description: "Символ современной Астаны. Башня высотой 97 метров." },
+                { name: "Хан Шатыр", location: "Астана", lat: 51.1322, lng: 71.4047, photo: "https://picsum.photos/id/133/800/600", description: "Самый большой шатёр в мире." },
+                { name: "Мечеть Нур-Астана", location: "Астана", lat: 51.1406, lng: 71.4703, photo: "https://picsum.photos/id/201/800/600", description: "Одна из крупнейших мечетей Центральной Азии." },
+                { name: "Ак-Орда", location: "Астана", lat: 51.1219, lng: 71.4378, photo: "https://picsum.photos/id/251/800/600", description: "Официальная резиденция Президента Республики Казахстан." }
             ];
 
-            // Удаляем старые маркеры
-            Object.values(markers).forEach(marker => {
-                if (map.hasLayer(marker)) map.removeLayer(marker);
+            const updates = {};
+            initial.forEach(obj => {
+                const newKey = objectsRef.push().key;
+                updates[newKey] = obj;
             });
+            objectsRef.update(updates);
+        }
+
+        function refreshMapAndCards() {
+            Object.values(markers).forEach(m => map.removeLayer(m));
             markers = {};
 
-            // Добавляем новые маркеры
             objects.forEach(obj => {
-                const marker = L.marker([obj.lat, obj.lng], { riseOnHover: true }).addTo(map);
-                marker.bindPopup(`
-                    <b>${obj.name}</b><br>
-                    <small>${obj.location}</small>
-                `);
-                markers[obj.id] = marker;
+                const marker = L.marker([obj.lat, obj.lng]).addTo(map);
+                marker.bindPopup(`<b>${obj.name}</b><br>${obj.location}`);
+                markers[obj.key] = marker;
             });
 
-            // Обновляем карточки и выпадающие списки
-            filterAndRender();
+            renderCards();
             populateSelects();
         }
 
-        // ==================== КАРТА ====================
-        function initMap() {
-            map = L.map('map', { zoomControl: true }).setView([51.1694, 71.4491], 6);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(map);
-        }
-
-        // ==================== КАРТОЧКИ ====================
-        function renderCards(filteredObjects) {
+        function renderCards() {
             const container = document.getElementById('cardsContainer');
             container.innerHTML = '';
-            document.getElementById('count').textContent = filteredObjects.length;
+            document.getElementById('count').textContent = objects.length;
 
-            if (filteredObjects.length === 0) {
-                container.innerHTML = `
-                    <div class="col-12 text-center py-5 text-muted">
-                        <h5>Ничего не найдено 😔</h5>
-                        <p>Попробуйте изменить запрос</p>
-                    </div>`;
-                return;
-            }
-
-            filteredObjects.forEach(obj => {
-                const cardHTML = `
-                    <div class="col-12">
-                        <div class="card h-100 shadow-sm">
-                            <img src="${obj.photo}" class="object-photo w-100" alt="${obj.name}">
-                            <div class="card-body">
-                                <h6 class="card-title">${obj.name}</h6>
-                                <p class="text-muted small mb-2">${obj.location}</p>
-                                <p class="card-text small">${obj.description.substring(0, 110)}...</p>
-                            </div>
+            objects.forEach(obj => {
+                const card = document.createElement('div');
+                card.className = 'col-12';
+                card.innerHTML = `
+                    <div class="card h-100 shadow-sm">
+                        <img src="${obj.photo}" class="object-photo w-100" alt="${obj.name}">
+                        <div class="card-body">
+                            <h6 class="card-title">${obj.name}</h6>
+                            <p class="text-muted small">${obj.location}</p>
+                            <p class="card-text small">${obj.description.substring(0, 110)}...</p>
                         </div>
                     </div>`;
-                const card = document.createElement('div');
-                card.innerHTML = cardHTML;
                 card.onclick = () => showInfoModal(obj);
                 container.appendChild(card);
             });
         }
 
-        function filterAndRender() {
-            const filtered = currentSearchTerm === '' 
-                ? objects 
-                : objects.filter(obj => 
-                    obj.name.toLowerCase().includes(currentSearchTerm) ||
-                    obj.location.toLowerCase().includes(currentSearchTerm) ||
-                    obj.description.toLowerCase().includes(currentSearchTerm)
-                );
-            renderCards(filtered);
+        function setupSearch() {
+            document.getElementById('searchInput').addEventListener('input', () => renderCards());
         }
 
-        // ==================== ПОДРОБНАЯ ИНФОРМАЦИЯ ====================
         function showInfoModal(obj) {
-            currentObjectId = obj.id;
+            currentObjectKey = obj.key;
             document.getElementById('modalTitle').textContent = obj.name;
-
-            let extraHTML = '';
-            if (obj.isUserAdded) {
-                extraHTML = `
-                    <div class="mt-4 border-top pt-3 d-flex gap-2">
-                        <button onclick="hideInfoAndEdit(${obj.id})" class="btn btn-warning flex-fill">
-                            ✏️ Редактировать
-                        </button>
-                        <button onclick="if(confirm('Удалить объект навсегда?')) deleteObject(${obj.id});" class="btn btn-danger flex-fill">
-                            🗑 Удалить
-                        </button>
-                    </div>`;
-            }
-
             document.getElementById('modalBody').innerHTML = `
                 <img src="${obj.photo}" class="mb-3">
                 <p><strong>Местоположение:</strong> ${obj.location}</p>
-                <p><strong>Координаты:</strong> ${obj.lat.toFixed(4)}, ${obj.lng.toFixed(4)}</p>
+                <p><strong>Координаты:</strong> ${obj.lat}, ${obj.lng}</p>
                 <p>${obj.description}</p>
-                ${extraHTML}
             `;
 
-            const modal = new bootstrap.Modal(document.getElementById('infoModal'));
-            modal.show();
+            const editBtn = document.getElementById('editInModalBtn');
+            const deleteBtn = document.getElementById('deleteInModalBtn');
+            editBtn.classList.toggle('d-none', !editMode);
+            deleteBtn.classList.toggle('d-none', !editMode);
+
+            new bootstrap.Modal(document.getElementById('infoModal')).show();
         }
 
-        window.goToObjectFromModal = function () {
-            const obj = objects.find(o => o.id === currentObjectId);
+        window.goToObjectFromModal = function() {
+            const obj = objects.find(o => o.key === currentObjectKey);
             if (!obj) return;
-            const infoModal = bootstrap.Modal.getInstance(document.getElementById('infoModal'));
-            if (infoModal) infoModal.hide();
-
-            map.flyTo([obj.lat, obj.lng], 16, { duration: 1.5 });
-            setTimeout(() => {
-                if (markers[obj.id]) markers[obj.id].openPopup();
-            }, 800);
+            bootstrap.Modal.getInstance(document.getElementById('infoModal')).hide();
+            map.flyTo([obj.lat, obj.lng], 16);
+            setTimeout(() => markers[obj.key]?.openPopup(), 800);
         };
 
-        window.hideInfoAndEdit = function (id) {
-            const infoModal = bootstrap.Modal.getInstance(document.getElementById('infoModal'));
-            if (infoModal) infoModal.hide();
-            setTimeout(() => showEditModal(id), 350);
+        window.hideInfoAndEdit = function() {
+            bootstrap.Modal.getInstance(document.getElementById('infoModal')).hide();
+            setTimeout(() => showEditModal(currentObjectKey), 400);
         };
 
-        // ==================== ДОБАВЛЕНИЕ / РЕДАКТИРОВАНИЕ ====================
-        function showAddModal() {
-            editingId = null;
-            document.getElementById('addForm').reset();
-            document.getElementById('addModalTitle').textContent = '➕ Добавить новый исторический объект';
-            document.getElementById('saveBtn').textContent = 'Добавить объект';
-            const modal = new bootstrap.Modal(document.getElementById('addModal'));
-            modal.show();
-        }
-
-        function showEditModal(id) {
-            const obj = userAdded.find(o => o.id === id);
+        function showEditModal(key) {
+            const obj = objects.find(o => o.key === key);
             if (!obj) return;
+            currentObjectKey = key;
 
-            editingId = id;
+            document.getElementById('addModalTitle').textContent = '✏️ Редактировать объект';
             document.getElementById('newName').value = obj.name;
             document.getElementById('newLocation').value = obj.location;
             document.getElementById('newLat').value = obj.lat;
@@ -390,14 +276,24 @@
             document.getElementById('newPhoto').value = obj.photo || '';
             document.getElementById('newDescription').value = obj.description;
 
-            document.getElementById('addModalTitle').textContent = '✏️ Редактировать объект';
-            document.getElementById('saveBtn').textContent = 'Сохранить изменения';
-
-            const modal = new bootstrap.Modal(document.getElementById('addModal'));
-            modal.show();
+            new bootstrap.Modal(document.getElementById('addModal')).show();
         }
 
-        window.saveObject = function () {
+        window.deleteCurrentObject = function() {
+            if (confirm('Удалить этот объект навсегда?')) {
+                objectsRef.child(currentObjectKey).remove();
+                bootstrap.Modal.getInstance(document.getElementById('infoModal')).hide();
+            }
+        };
+
+        function showAddModal() {
+            currentObjectKey = null;
+            document.getElementById('addForm').reset();
+            document.getElementById('addModalTitle').textContent = '➕ Добавить новый объект';
+            new bootstrap.Modal(document.getElementById('addModal')).show();
+        }
+
+        window.saveObject = function() {
             const name = document.getElementById('newName').value.trim();
             const location = document.getElementById('newLocation').value.trim();
             const lat = parseFloat(document.getElementById('newLat').value);
@@ -406,155 +302,100 @@
             const description = document.getElementById('newDescription').value.trim();
 
             if (!name || !location || isNaN(lat) || isNaN(lng) || !description) {
-                alert('Пожалуйста, заполните все обязательные поля!');
+                alert('Заполните все обязательные поля!');
                 return;
             }
 
-            const newObj = {
-                id: editingId !== null ? editingId : Date.now(),
-                name: name,
-                location: location,
-                lat: lat,
-                lng: lng,
-                photo: photo || `https://picsum.photos/id/${Math.floor(Math.random() * 1000) + 100}/800/600`,
-                description: description,
-                isUserAdded: true
-            };
+            const objData = { name, location, lat, lng, photo: photo || `https://picsum.photos/id/${Math.floor(Math.random()*900)+100}/800/600`, description };
 
-            if (editingId !== null) {
-                // Редактирование
-                const index = userAdded.findIndex(o => o.id === editingId);
-                if (index !== -1) userAdded[index] = newObj;
+            if (currentObjectKey) {
+                objectsRef.child(currentObjectKey).update(objData);
             } else {
-                // Добавление
-                userAdded.push(newObj);
+                objectsRef.push(objData);
             }
 
-            saveData();
-            refreshAll();
-
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addModal'));
-            modal.hide();
-            editingId = null;
-
-            alert(editingId !== null ? 'Изменения успешно сохранены! 🎉' : 'Новый объект добавлен! 🎉');
+            bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
         };
 
-        // ==================== УДАЛЕНИЕ ====================
-        window.deleteObject = function (id) {
-            userAdded = userAdded.filter(o => o.id !== id);
-            saveData();
-            refreshAll();
-            const infoModal = bootstrap.Modal.getInstance(document.getElementById('infoModal'));
-            if (infoModal) infoModal.hide();
-        };
-
-        // ==================== ОЧИСТКА ВСЕХ ДОБАВЛЕННЫХ ====================
-        window.clearAllAdded = function () {
-            if (userAdded.length === 0) {
-                alert('Нет добавленных объектов для очистки.');
-                return;
+        function toggleEditMode() {
+            if (editMode) {
+                editMode = false;
+                document.getElementById('addBtn').classList.add('d-none');
+                document.getElementById('editModeBtn').innerHTML = '🔐 Войти в режим редактирования';
+                alert('Режим редактирования выключен');
+            } else {
+                document.getElementById('passwordInput').value = '';
+                new bootstrap.Modal(document.getElementById('passwordModal')).show();
             }
-            if (confirm(`Удалить ВСЕ добавленные объекты (${userAdded.length} шт.)? Базовые объекты останутся.`)) {
-                userAdded = [];
-                saveData();
-                refreshAll();
-                alert('Все добавленные объекты очищены ✅');
-            }
-        };
-
-        // ==================== ПОИСК ====================
-        function setupSearch() {
-            const input = document.getElementById('searchInput');
-            input.addEventListener('input', () => {
-                currentSearchTerm = input.value.toLowerCase().trim();
-                filterAndRender();
-            });
         }
 
-        // ==================== ВЫПАДАЮЩИЕ СПИСКИ ДЛЯ МАРШРУТА ====================
+        window.checkPassword = function() {
+            if (document.getElementById('passwordInput').value === PASSWORD) {
+                editMode = true;
+                bootstrap.Modal.getInstance(document.getElementById('passwordModal')).hide();
+                document.getElementById('addBtn').classList.remove('d-none');
+                document.getElementById('editModeBtn').innerHTML = '🚪 Выйти из режима редактирования';
+                alert('✅ Режим редактирования включён! Теперь можно редактировать и удалять объекты.');
+            } else {
+                alert('❌ Неправильный пароль');
+            }
+        };
+
+        function initMap() {
+            map = L.map('map').setView([51.1694, 71.4491], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
         function populateSelects() {
-            const startSelect = document.getElementById('startSelect');
-            const endSelect = document.getElementById('endSelect');
-
-            startSelect.innerHTML = '<option value="">Выберите старт...</option>';
-            endSelect.innerHTML = '<option value="">Выберите финиш...</option>';
-
+            const start = document.getElementById('startSelect');
+            const end = document.getElementById('endSelect');
+            start.innerHTML = end.innerHTML = '<option value="">Выберите...</option>';
             objects.forEach(obj => {
-                const opt = `<option value="${obj.id}">${obj.name} (${obj.location})</option>`;
-                startSelect.innerHTML += opt;
-                endSelect.innerHTML += opt;
+                const opt = `<option value="${obj.key}">${obj.name} (${obj.location})</option>`;
+                start.innerHTML += opt;
+                end.innerHTML += opt;
             });
         }
 
-        // ==================== ПОСТРОЕНИЕ МАРШРУТА (полная версия из первой) ====================
         window.buildRoute = function () {
-            const startId = parseInt(document.getElementById('startSelect').value);
-            const endId = parseInt(document.getElementById('endSelect').value);
+            const startKey = document.getElementById('startSelect').value;
+            const endKey = document.getElementById('endSelect').value;
+            if (!startKey || !endKey) return alert('Выберите точки маршрута!');
+            if (startKey === endKey) return alert('Выберите разные точки!');
 
-            if (!startId || !endId) {
-                alert('Выберите точку старта и финиша!');
-                return;
-            }
-            if (startId === endId) {
-                alert('Выберите разные точки 🙂');
-                return;
-            }
+            if (routeControl) map.removeControl(routeControl);
 
-            // Удаляем старый маршрут
-            if (routeControl) {
-                map.removeControl(routeControl);
-                routeControl = null;
-            }
-
-            const startObj = objects.find(o => o.id === startId);
-            const endObj = objects.find(o => o.id === endId);
+            const startObj = objects.find(o => o.key === startKey);
+            const endObj = objects.find(o => o.key === endKey);
 
             routeControl = L.Routing.control({
-                waypoints: [
-                    L.latLng(startObj.lat, startObj.lng),
-                    L.latLng(endObj.lat, endObj.lng)
-                ],
-                router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1'
-                }),
-                lineOptions: {
-                    styles: [{ color: '#0d6efd', weight: 6, opacity: 0.9 }]
-                },
+                waypoints: [L.latLng(startObj.lat, startObj.lng), L.latLng(endObj.lat, endObj.lng)],
+                router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' }),
+                lineOptions: { styles: [{ color: '#0d6efd', weight: 6 }] },
                 showAlternatives: true,
-                altLineOptions: {
-                    styles: [{ color: '#6c757d', weight: 5, opacity: 0.6 }]
-                },
-                fitSelectedRoutes: true,
-                show: true
+                fitSelectedRoutes: true
             }).addTo(map);
-
-            map.flyToBounds([
-                [startObj.lat, startObj.lng],
-                [endObj.lat, endObj.lng]
-            ], { padding: [80, 80] });
         };
 
         window.clearRoute = function () {
-            if (routeControl) {
-                map.removeControl(routeControl);
-                routeControl = null;
-            }
+            if (routeControl) map.removeControl(routeControl);
+            routeControl = null;
         };
 
         // ==================== ЗАПУСК ====================
         window.onload = function () {
-            loadData();           // загружаем добавленные объекты из localStorage
-            initMap();            // создаём карту
-            refreshAll();         // добавляем маркеры + карточки + списки
-            setupSearch();        // поиск
-            console.log('%c✅ Полностью готовый сайт с localStorage, редактированием, удалением и маршрутами!', 'color:#0d6efd; font-size:16px');
+            initFirebase();
+            initMap();
+            loadObjects();
+            setupSearch();
+            console.log('%c✅ Сайт обновлён! Пароль для редактирования: admin', 'color:#0d6efd; font-size:16px');
         };
     </script>
 
-    <footer class="text-center py-4 text-muted small mt-5">
-        Сделано для проектной работы • Все добавленные объекты сохраняются автоматически в браузере<br>
-        (localStorage). При очистке кэша браузера добавленные объекты исчезнут.
+    <footer class="text-center py-4 text-muted small">
+        Данные хранятся в Firebase • Пароль для редактирования: <strong>admin</strong>
     </footer>
 </body>
 </html>
